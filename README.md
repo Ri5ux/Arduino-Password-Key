@@ -1,1 +1,1 @@
-<h1>Arduino Password Key (Pro Micro)</h1>
+<h1>Arduino Password Key (Digispark)</h1>
