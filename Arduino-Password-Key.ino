@@ -1,40 +1,41 @@
-#include <Keyboard.h>
+#include <DigiKeyboard.h>
 #include <EEPROM.h>
+#include <SoftwareSerial.h>
 
-String password;
+String password = "";
 int pswdMaxLength = 50;
 int startAddrPswd = 0;
 
+SoftwareSerial line(4, 5); // RX, TX
+
 void setup() {
-  Serial.begin(9600);
-  Keyboard.begin();
+  line.begin(115200);
   delay(600);
   readPasswordFromEEPROM();
 
   if (password.length() > 0) {
     delay(10);
-    Keyboard.print(password);
-    Keyboard.press(KEY_RETURN);
+    DigiKeyboard.print(password);
+    DigiKeyboard.sendKeyStroke(0);
     delay(100);
-    Keyboard.releaseAll();
+    DigiKeyboard.sendKeyStroke(KEY_ENTER);
   }
 }
 
 void loop() {
-  if (Serial.available() > 0) {
-    String command = Serial.readStringUntil(' ');
+    String command = readUntil(' ');
     
     if (command == "pswd") {
-      String arg1 = Serial.readStringUntil(' ');
+      String arg1 = readUntil(' ');
 
       if (arg1 == "set") {
-        String arg2 = Serial.readStringUntil(' ');
-        String arg3 = Serial.readStringUntil('\n');
+        String arg2 = readUntil(' ');
+        String arg3 = readUntil('\n');
 
         if (arg2 == arg3) {
           setPassword(arg2);
         } else {
-          Serial.println("Passwords do not match. Please try again.");
+          line.println("Passwords do not match.");
         }
       } else if (arg1 == "clear") {
         clearPassword();
@@ -47,15 +48,29 @@ void loop() {
     } else if (command == "help") {
       contextCommandHelp();
     } else {
-      commandNotFound(command);
       contextCommandHelp();
     }
+}
+
+String readUntil(char c)
+{
+  String lineBuffer = "";
+  
+  while (line.available() > 0) {
+    char chr = line.read();
+    
+    if (chr == c)
+    {
+      return lineBuffer;
+    }
+    
+    lineBuffer += chr;
   }
 }
 
 void clearPassword() {
   setPassword("");
-  Serial.println("Password cleared.");
+  line.println("Password cleared.");
 }
 
 void readPasswordFromEEPROM() {
@@ -79,17 +94,17 @@ void readPasswordFromEEPROM() {
 
   String pswd(values);
 
-  Serial.print("Read password [");
-  Serial.print(pswd);
-  Serial.println("]");
+  line.print("Read [");
+  line.print(pswd);
+  line.println("]");
   
   password = pswd;
 }
 
 void setPassword(String pswd) {
-  Serial.print("Proposed Password [");
-  Serial.print(pswd);
-  Serial.println("]\n");
+  line.print("Writing [");
+  line.print(pswd);
+  line.println("]\n");
 
   pswd.trim();
   password = pswd;
@@ -110,23 +125,17 @@ void setPassword(String pswd) {
     }
     
     EEPROM.write(addr, value);
-    Serial.print("Writing value '");
-    Serial.print(value);
-    Serial.print("' to EEPROM at address ");
-    Serial.println(addr);
+    line.print("Writing '");
+    line.print(value);
+    line.print("' to addr ");
+    line.println(addr);
   }
 
-  Serial.println("\nNew password programmed into internal memory.");
-}
-
-void commandNotFound(String command) {
-  Serial.print("Command '");
-  Serial.print(command);
-  Serial.println("' not found. See 'help'.");
+  line.println("\nPassword set.");
 }
 
 void commandInvalid() {
-  Serial.println("Command invalid.");
+  line.println("Command invalid.");
 }
 
 void contextCommandPswd() {
@@ -135,23 +144,23 @@ void contextCommandPswd() {
 }
 
 void contextCommandHelp() {
-  Serial.println();
-  Serial.println("help - Provides help for this password key.");
+  line.println();
+  line.println("help - Provides help for this password key.");
   contextCommandPswd();
-  Serial.println();
+  line.println();
 }
 
 void contextCommand(String cmd, String args[], String details) {
-  Serial.print(cmd);
-  Serial.print(" ");
+  line.print(cmd);
+  line.print(" ");
 
   for (int i = 0; i <= sizeof(args); i++) {
    String arg = args[i];
-   Serial.print("<");
-   Serial.print(arg);
-   Serial.print("> ");
+   line.print("<");
+   line.print(arg);
+   line.print("> ");
   }
   
-  Serial.print("- ");
-  Serial.println(details);
+  line.print("- ");
+  line.println(details);
 }
